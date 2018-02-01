@@ -34,7 +34,7 @@ static NSMutableDictionary* s_customHeadersForSingleUse = nil;
     {
     // MacOS does not use PKeyAuth.
 #if TARGET_OS_IPHONE
-        s_customHeaders = [NSMutableDictionary dictionaryWithDictionary: @{@"x-ms-PkeyAuth":@"1.0"}];
+        s_customHeaders = [NSMutableDictionary new];
 #else
         s_customHeaders = [NSMutableDictionary dictionary];
 #endif
