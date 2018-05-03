@@ -37,8 +37,13 @@
 #import "ADWebAuthRequest.h"
 #import "NSString+ADURLExtensions.h"
 #import "MSIDDeviceId.h"
+#import "MSIDAADOauth2Factory.h"
 #import "MSIDAADV1Oauth2Factory.h"
 #import "ADAuthenticationErrorConverter.h"
+#import "MSIDRequestParameters.h"
+#import "MSIDOAuth2EmbeddedWebviewController.h"
+#import "MSIDWebviewAuthorization.h"
+#import "MSIDWebOAuth2Response.h"
 
 @implementation ADAuthenticationRequest (WebRequest)
 
@@ -99,79 +104,43 @@
     return NO;
 }
 
-// Encodes the state parameter for a protocol message
-- (NSString *)encodeProtocolState
+- (void)launchWebView:(MSIDWebUICompletionHandler)completionBlock
 {
-    return [[[NSMutableDictionary dictionaryWithObjectsAndKeys:[_requestParams authority], @"a", [_requestParams resource], @"r", _requestParams.scope, @"s", nil]
-             msidURLFormEncode] msidBase64UrlEncode];
-}
-
-//Generates the query string, encoding the state:
-- (NSString*)generateQueryStringForRequestType:(NSString*)requestType
-{
-    NSString* state = [self encodeProtocolState];
-    NSString* queryParams = nil;
-    // Start the web navigation process for the Implicit grant profile.
-    NSMutableString* startUrl = [NSMutableString stringWithFormat:@"%@?%@=%@&%@=%@&%@=%@&%@=%@&%@=%@",
-                                 [_context.authority stringByAppendingString:MSID_OAUTH2_AUTHORIZE_SUFFIX],
-                                 MSID_OAUTH2_RESPONSE_TYPE, requestType,
-                                 MSID_OAUTH2_CLIENT_ID, [[_requestParams clientId] msidUrlFormEncode],
-                                 MSID_OAUTH2_RESOURCE, [[_requestParams resource] msidUrlFormEncode],
-                                 MSID_OAUTH2_REDIRECT_URI, [[_requestParams redirectUri] msidUrlFormEncode],
-                                 MSID_OAUTH2_STATE, state];
+    MSIDRequestParameters *requestParams = [[MSIDRequestParameters alloc] initWithAuthority:[NSURL URLWithString:_requestParams.authority]
+                                                                                redirectUri:_requestParams.redirectUri
+                                                                                   clientId:_requestParams.clientId
+                                                                                     target:_requestParams.resource];
+    [requestParams setLoginHint:[_requestParams identifier].userId];
+    [requestParams setCorrelationId:_requestParams.correlationId.UUIDString];
+    [requestParams setExtraQueryParameters:_queryParams];
+    [requestParams setPromptBehavior:[ADAuthenticationContext getPromptParameter:_promptBehavior]];
+    [requestParams setClaims:_claims];
+    MSIDAADV1Oauth2Factory *factory = [MSIDAADV1Oauth2Factory new];
     
-    [startUrl appendFormat:@"&%@", [[MSIDDeviceId deviceId] msidURLFormEncode]];
+    //MSIDOAuth2EmbeddedWebviewController *webviewController =
+//    [MSIDWebviewAuthorization embeddedWebviewControllerWithRequestParameters:requestParams
+//                                                                     //webview:_context.webView
+//                                                                     factory:factory];
+    [MSIDWebviewAuthorization startEmbeddedWebviewWebviewAuthWithRequestParameters:requestParams webview:nil factory:factory context:_requestParams completionHandler:completionBlock];
+//    if (!webviewController)
+//    {
+//        //TODO: error out
+//    }
     
-    if ([_requestParams identifier] && [[_requestParams identifier] isDisplayable] && ![NSString msidIsStringNilOrBlank:[_requestParams identifier].userId])
-    {
-        [startUrl appendFormat:@"&%@=%@", MSID_OAUTH2_LOGIN_HINT, [[_requestParams identifier].userId msidUrlFormEncode]];
-    }
-    NSString* promptParam = [ADAuthenticationContext getPromptParameter:_promptBehavior];
-    if (promptParam)
-    {
-        //Force the server to ignore cookies, by specifying explicitly the prompt behavior:
-        [startUrl appendString:[NSString stringWithFormat:@"&prompt=%@", promptParam]];
-    }
     
-    [startUrl appendString:@"&haschrome=1"]; //to hide back button in UI
     
-    if (![NSString msidIsStringNilOrBlank:_queryParams])
-    {//Append the additional query parameters if specified:
-        queryParams = _queryParams.msidTrimmedString;
-        
-        //Add the '&' for the additional params if not there already:
-        if ([queryParams hasPrefix:@"&"])
-        {
-            [startUrl appendString:queryParams];
-        }
-        else
-        {
-            [startUrl appendFormat:@"&%@", queryParams];
-        }
-    }
+    //[controller startRequestWithCompletionHandler:nil];
     
-    if (![NSString msidIsStringNilOrBlank:_claims])
-    {
-        NSString *claimsParam = _claims.msidTrimmedString;
-        [startUrl appendFormat:@"&claims=%@", claimsParam];
-    }
-    
-    return startUrl;
-}
-
-- (void)launchWebView:(NSString*)startUrl
-      completionBlock:(void (^)(ADAuthenticationError*, NSURL*))completionBlock
-{
-    [[ADWebAuthController sharedInstance] start:[NSURL URLWithString:startUrl]
-                                            end:[NSURL URLWithString:[_requestParams redirectUri]]
-                                    refreshCred:_refreshTokenCredential
-#if TARGET_OS_IPHONE
-                                         parent:_context.parentController
-                                     fullScreen:[ADAuthenticationSettings sharedInstance].enableFullScreen
-#endif
-                                        webView:_context.webView
-                                        context:_requestParams
-                                     completion:completionBlock];
+//    [[ADWebAuthController sharedInstance] start:[NSURL URLWithString:startUrl]
+//                                            end:[NSURL URLWithString:[_requestParams redirectUri]]
+//                                    refreshCred:_refreshTokenCredential
+//#if TARGET_OS_IPHONE
+//                                         parent:_context.parentController
+//                                     fullScreen:[ADAuthenticationSettings sharedInstance].enableFullScreen
+//#endif
+//                                        webView:_context.webView
+//                                        context:_requestParams
+//                                     completion:completionBlock];
 }
 
 //Requests an OAuth2 code to be used for obtaining a token:
@@ -183,85 +152,28 @@
     MSID_LOG_VERBOSE(_requestParams, @"Requesting authorization code");
     MSID_LOG_VERBOSE_PII(_requestParams, @"Requesting authorization code for resource: %@", _requestParams.resource);
     
-    NSString* startUrl = [self generateQueryStringForRequestType:MSID_OAUTH2_CODE];
+    //NSString* startUrl = [self generateQueryStringForRequestType:MSID_OAUTH2_CODE];
     
-    void(^requestCompletion)(ADAuthenticationError *error, NSURL *end) = ^void(ADAuthenticationError *error, NSURL *end)
+    void(^requestCompletion)(MSIDWebOAuth2Response *response, NSError *error) = ^void(MSIDWebOAuth2Response *response, NSError *error)
     {
-        [ADAuthenticationRequest releaseExclusionLock]; // Allow other operations that use the UI for credentials.
-         
-        NSString *code = nil;
         
-        if (!error)
+        [ADAuthenticationRequest releaseExclusionLock]; // Allow other operations that use the UI for credentials.
+        //todo handle wpj response
+        if (error)
         {
-             if ([[[end scheme] lowercaseString] isEqualToString:@"msauth"]) {
-#if AD_BROKER
-                 
-                 NSString* host = [end host];
-                 if ([host isEqualToString:@"microsoft.aad.brokerplugin"] || [host isEqualToString:@"code"])
-                 {
-                     NSDictionary* queryParams = [end msidQueryParameters];
-                     code = [queryParams objectForKey:MSID_OAUTH2_CODE];
-                     [self setCloudInstanceHostname:[queryParams objectForKey:AUTH_CLOUD_INSTANCE_HOST_NAME]];
-                 }
-                 else
-                 {
-                     NSMutableDictionary *userInfoDictionary = [NSMutableDictionary dictionary];
-                     NSDictionary *queryParameters = [NSDictionary msidURLFormDecode:[end query]];
-                     NSString *userName = [queryParameters valueForKey:AUTH_USERNAME_KEY];
-                     
-                     if (![NSString msidIsStringNilOrBlank:userName])
-                     {
-                         [userInfoDictionary setObject:userName forKey:AUTH_USERNAME_KEY];
-                     }
-                     
-                     NSError* err = [NSError errorWithDomain:ADAuthenticationErrorDomain
-                                                        code:AD_ERROR_SERVER_WPJ_REQUIRED
-                                                    userInfo:userInfoDictionary];
-                     error = [ADAuthenticationError errorFromNSError:err errorDetails:@"work place join is required" correlationId:_requestParams.correlationId];
-                 }
-#else
-                 code = end.absoluteString;
-#endif
-             }
-             else
-             {
-                 //Try both the URL and the fragment parameters:
-                 NSDictionary *parameters = [end msidFragmentParameters];
-                 if ( parameters.count == 0 )
-                 {
-                     parameters = [end msidQueryParameters];
-                 }
-                 
-                 //OAuth2 error may be passed by the server:
-                 error = [ADAuthenticationContext errorFromDictionary:parameters errorCode:AD_ERROR_SERVER_AUTHORIZATION_CODE];
-                 if (!error)
-                 {
-                     //Note that we do not enforce the state, just log it:
-                     [self verifyStateFromDictionary:parameters];
-                     code = [parameters objectForKey:MSID_OAUTH2_CODE];
-                     if ([NSString msidIsStringNilOrBlank:code])
-                     {
-                         error = [ADAuthenticationError errorFromAuthenticationError:AD_ERROR_SERVER_AUTHORIZATION_CODE
-                                                                        protocolCode:nil
-                                                                        errorDetails:@"The authorization server did not return a valid authorization code."
-                                                                       correlationId:[_requestParams correlationId]];
-                     }
-                     
-                     [self setCloudInstanceHostname:[parameters objectForKey:ADAL_AUTH_CLOUD_INSTANCE_HOST_NAME]];
-                     
-                 }
-             }
-         }
-         
-         completionBlock(code, error);
+            completionBlock(nil, [ADAuthenticationErrorConverter ADAuthenticationErrorFromMSIDError:error]);
+        }
+        else
+        {
+            completionBlock(response.code, [ADAuthenticationErrorConverter ADAuthenticationErrorFromMSIDError:response.oauthError]);
+        }
      };
     
     // If this request doesn't allow us to attempt to grab a code silently (using
     // a potential SSO cookie) then jump straight to the web view.
     if (!_allowSilent)
     {
-        [self launchWebView:startUrl
-            completionBlock:requestCompletion];
+        [self launchWebView:requestCompletion];
     }
     else
     {
@@ -293,7 +205,8 @@
          {
              if (error && ![parameters objectForKey:@"url"]) // auth code and OAuth2 error could be in endURL
              {
-                 requestCompletion(error, nil);
+                 // TODO:
+                 //requestCompletion(error, nil);
                  [req invalidate];
                  return;
              }
@@ -307,16 +220,15 @@
                  // If the request was not silent only then launch the webview
                  if (!_silent)
                  {
-                     [self launchWebView:startUrl
-                         completionBlock:requestCompletion];
+                     [self launchWebView:requestCompletion];
                      return;
                  }
                  
                  // Otherwise error out
                  error = [ADAuthenticationContext errorFromDictionary:parameters errorCode:AD_ERROR_SERVER_AUTHORIZATION_CODE];
              }
-             
-             requestCompletion(error, endURL);
+             // todo:
+             //requestCompletion(error, endURL);
              [req invalidate];
          }];
     }

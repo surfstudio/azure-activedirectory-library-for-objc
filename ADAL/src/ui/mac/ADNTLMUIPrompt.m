@@ -22,7 +22,7 @@
 // THE SOFTWARE.
 
 #import "ADNTLMUIPrompt.h"
-#import "ADCredentialCollectionController.h"
+//#import "ADCredentialCollectionController.h"
 
 @interface ADNTLMUIPrompt ()
 {
@@ -49,42 +49,42 @@ __weak static NSAlert *_presentedPrompt = nil;
 
 + (void)presentPrompt:(void (^)(NSString * username, NSString * password))completionHandler
 {
-    dispatch_async(dispatch_get_main_queue(), ^{
-        NSAlert* alert = [NSAlert new];
-        
-        [alert setMessageText:NSLocalizedString(@"Enter your credentials", nil)];
-        NSButton* loginButton = [alert addButtonWithTitle:NSLocalizedString(@"Login", nil)];
-        NSButton* cancelButton = [alert addButtonWithTitle:NSLocalizedString(@"Cancel", nil)];
-        
-        ADCredentialCollectionController* view = [ADCredentialCollectionController new];
-        [view.usernameLabel setStringValue:NSLocalizedString(@"Username", nil)];
-        [view.passwordLabel setStringValue:NSLocalizedString(@"Password", nil)];
-        [alert setAccessoryView:view.customView];
-        
-        [[alert window] setInitialFirstResponder:view.usernameField];
-        
-        [alert beginSheetModalForWindow:[NSApp keyWindow] completionHandler:^(NSModalResponse returnCode)
-         {
-             if (returnCode == 1000)
-             {
-                 NSString* username = [view.usernameField stringValue];
-                 NSString* password = [view.passwordField stringValue];
-                 
-                 completionHandler(username, password);
-             }
-             else
-             {
-                 completionHandler(nil, nil);
-             }
-         }];
-        
-        _presentedPrompt = alert;
-        
-        [view.usernameField setNextKeyView:view.passwordField];
-        [view.passwordField setNextKeyView:cancelButton];
-        [cancelButton setNextKeyView:loginButton];
-        [loginButton setNextKeyView:view.usernameField];
-    });
+//    dispatch_async(dispatch_get_main_queue(), ^{
+//        NSAlert* alert = [NSAlert new];
+//        
+//        [alert setMessageText:NSLocalizedString(@"Enter your credentials", nil)];
+//        NSButton* loginButton = [alert addButtonWithTitle:NSLocalizedString(@"Login", nil)];
+//        NSButton* cancelButton = [alert addButtonWithTitle:NSLocalizedString(@"Cancel", nil)];
+//        
+//        ADCredentialCollectionController* view = [ADCredentialCollectionController new];
+//        [view.usernameLabel setStringValue:NSLocalizedString(@"Username", nil)];
+//        [view.passwordLabel setStringValue:NSLocalizedString(@"Password", nil)];
+//        [alert setAccessoryView:view.customView];
+//        
+//        [[alert window] setInitialFirstResponder:view.usernameField];
+//        
+//        [alert beginSheetModalForWindow:[NSApp keyWindow] completionHandler:^(NSModalResponse returnCode)
+//         {
+//             if (returnCode == 1000)
+//             {
+//                 NSString* username = [view.usernameField stringValue];
+//                 NSString* password = [view.passwordField stringValue];
+//                 
+//                 completionHandler(username, password);
+//             }
+//             else
+//             {
+//                 completionHandler(nil, nil);
+//             }
+//         }];
+//        
+//        _presentedPrompt = alert;
+//        
+//        [view.usernameField setNextKeyView:view.passwordField];
+//        [view.passwordField setNextKeyView:cancelButton];
+//        [cancelButton setNextKeyView:loginButton];
+//        [loginButton setNextKeyView:view.usernameField];
+//    });
 }
 
 @end

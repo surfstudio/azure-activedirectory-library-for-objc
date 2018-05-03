@@ -43,7 +43,8 @@ static NSDictionary *s_userInfoKeyMapping;
 + (void)initialize
 {
     s_errorDomainMapping = @{
-                             MSIDErrorDomain : ADAuthenticationErrorDomain
+                             MSIDErrorDomain : ADAuthenticationErrorDomain,
+                             MSIDOAuthErrorDomain : ADOAuthServerErrorDomain
                              };
     
     s_errorCodeMapping = @{
@@ -65,7 +66,11 @@ static NSDictionary *s_userInfoKeyMapping;
                                    @(MSIDErrorInvalidClient): @(AD_ERROR_SERVER_OAUTH),
                                    @(MSIDErrorInvalidGrant): @(AD_ERROR_SERVER_REFRESH_TOKEN_REJECTED),
                                    @(MSIDErrorInvalidParameter):@(AD_ERROR_DEVELOPER_INVALID_ARGUMENT),
-                                   @(MSIDErrorDeveloperAuthorityValidation):@(AD_ERROR_DEVELOPER_AUTHORITY_VALIDATION)
+                                   @(MSIDErrorDeveloperAuthorityValidation):@(AD_ERROR_DEVELOPER_AUTHORITY_VALIDATION),
+                                   @(MSIDErrorUserCancel):@(AD_ERROR_UI_USER_CANCEL)
+                                   },
+                           MSIDOAuthErrorDomain:@{
+                                   @(MSIDErrorAuthorizationCode):@(AD_ERROR_SERVER_AUTHORIZATION_CODE)
                                    }
                            };
     
