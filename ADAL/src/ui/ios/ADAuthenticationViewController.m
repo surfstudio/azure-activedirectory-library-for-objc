@@ -97,7 +97,7 @@ NSString *const AD_FAILED_NO_CONTROLLER = @"The Application does not have a curr
     _webView = webView;
 
     _activityIndicator = [[UIActivityIndicatorView alloc] initWithActivityIndicatorStyle:UIActivityIndicatorViewStyleWhiteLarge];
-    [_activityIndicator setColor:[UIColor blackColor]];
+    [_activityIndicator setColor:[UIColor colorWithRed:50.0/255.0 green:126.0/255.0 blue:252.0/255.0 alpha:1.0]];
     [_activityIndicator setCenter:rootView.center];
     [rootView addSubview:_activityIndicator];
 
